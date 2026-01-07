@@ -25,7 +25,7 @@ This is an OpenGL series from GetIntoGameDev on Youtube.
 
 For Episode 14's Image Arrays, you're seeing the instantiation of 1000 objects, each with their own textures.
 
-You'll have to back up with the key "S" a but before you can see the structure.
+You'll have to back up with the key "S" a bit before you can see the structure.
 
 
 
