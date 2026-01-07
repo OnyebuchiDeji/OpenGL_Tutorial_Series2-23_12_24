@@ -1,0 +1,46 @@
+#version 430
+
+/**
+    Probably because it's a compute shader
+    that's why it's version 430
+    and why it can take variables like it does below
+
+    Adjusting the `local_size_ x and y` affects the gl_GlobalInvocationID
+    hence affecting the screen space
+*/
+
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(rgba32f, binding = 0) uniform image2D colorBuffer;
+
+
+void main()
+{
+    /**
+        This gl_GlobalInvocationID is a 3D invocation is specific to the Compute Shaders.
+        it refers to the Global Location of this specific invokation of the compute shader within the problem space.
+        This is 3D and an unsigned vector, so just convert it to an integer vector.
+
+        Basically, it just gets the coordinate data of the current pixel.
+    */
+    ivec2 pixelPos = ivec2(gl_GlobalInvocationID.xy);
+    
+    //  Read back size of image being worked with
+    ivec2 screen_size = imageSize(colorBuffer);
+
+    /**
+        The read size is used to do a bounds checked to ensure that the Compute Shader invocation
+        is within range for the image.
+        This is needed because a workgroup can be launched where some invocations (or pixel data) are on-screen
+        and some are off-screen. So this ensures that the launched workgroup is complete when all the invocations
+        in the workgroup are complete.
+
+        So if there's a workgroup of 8 invocations, and 6 invocations are done working and have returned, while 2 are still working...
+        those done will sit and wait until the rest are done.
+    */
+    if (pixelPos.x >= screen_size.x || pixelPos.y >= screen_size.y){
+        return;
+    }
+    
+    //  Write a Pixel.
+    imageStore(colorBuffer, pixelPos, vec4(1.0, 0.75, 0.5, 1.0));
+}

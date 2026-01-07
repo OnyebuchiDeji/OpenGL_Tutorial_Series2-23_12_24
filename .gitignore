@@ -1,0 +1,9 @@
+.vscode/
+.cmake/
+build/
+glad/
+glfw/
+GLFW/
+glm/
+!.gitmodules
+!.gitignore

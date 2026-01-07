@@ -1,0 +1,115 @@
+#version 330 core
+
+in vec3 fragmentColor;
+in vec2 fragmentTexCoord;
+
+uniform sampler2D material;
+
+out vec4 pixelColor;
+
+void main()
+{
+    /**
+        Now texture coordinates normally go from [0..1] for x and y..
+        But since this texture is being rendered on a Quad surface whose
+        coordinates are from [-1, -1] to [1, 1]...
+        many issues arise.
+
+        1.  First thing to notice about what is displayed before the transformation:
+            the image is upside down.
+        This is not GLSL's (the GPU's) fault, but how stbi_image loaded this image.
+
+        2.  Next, you will notice the repitition:
+        Now the vertexData is being used to get the pixels from the sampler.
+        These vertexData display from [-1, -1] to [1, 1] in both x and y axes
+        This is gives a pixel displacement of 2, because -1 - (-1) = 2.
+        So from the left to the right on both x and y axes, (-1 to 1), it's a displacement of 2
+        Note this displacement d = 2.
+
+        Then you will see that the displayed picture without normalization shows 
+        the bottom left of the image starting from [0,0] in the [-1..1] coordinate space.
+
+        This is simply because the image is sampled into this coordinate space.
+        The texture normalized sample size is from [0..1] -- displacement is 1 
+
+        So when displayed on a [-1, -1] to [1, 1], the whole of the image (because it goes from
+        [0..1]) can be displayed on half of the above coordinates, which is a quater in both axes.
+        that is, from the coordinate's center at [0,0] the texture can fit in the top right
+        since the center of the space to the top right is [0, 0] to [1, 1] just like the whole texture.
+        Likewise, from the top left to the center, [-1, 1] to [0, 0], d = 1.
+        Likewise, from the center to bottom right, [0, 0] to [1, -1], d = 1
+        and from the bottom left to the center, [-1, -1] to [0, 0], d =1
+        Note they are able to fit a whole texture of the image because their displacement is same
+        as the image/texture, it is 1
+        This is the cause of the duplication/repitition of the image in different areas of the coordinate space.
+
+        SOL:
+            When you multiply these VertexData by 0.5, you reduce it to fit the image's size or what I call displacement:
+            so from [-1, -1] to [1, 1], it becomes [-0.5, -0.5] to [0.5, 0.5]
+            Now the displacement of the space coordinate is 1 because
+            -0.5 to 0.5 is +1, or
+            -0.5 - (-0.5) = 1 
+        
+        3.  You will see that even with the transformation, the image looks displaced; now the repitition
+        does not repeat the whole image, but just part, because of the space coordinate is not properly configured.
+
+        Space Coordinate: [-0.5, -0.5] to [0.5, 0.5] in both axes
+        But Texture coordinate (not the variable defined as texture coordinate, but the orginal way
+        that OpenGL normalizes the texture size in the Sampler2D):
+                            [0, 0] to [1, 1]
+
+        So in each repeated quadrant, only half of the orginal texture is displayed.
+
+        SOL:
+            Fix this by either subtracting or adding 0.5.
+            Choose adding as it makes more sense with my above explanation.
+
+            adding 0.5:
+                [-0.5, -0.5] to [0.5, 0.5] -> [0, 0] to [1, 1]
+            Substracting 0.5:
+                [-0.5, -0.5] to [0.5, 0.5] -> [-1, -1] to [0, 0]
+
+            The two sols do the same thing; they displace the space coordinate so they
+            can fit just one of the whole texture, since their displacements in both the
+            x and y axes are 1, just like the normalized texture width and height.
+        
+        From this you should understand that OpenGL maps pixels in a strange way that
+        is easy to understand but almost difficult to put in words.
+
+        For example, when you subtract 0.5, and space coordinates change to [-1, -1] to [0, 0]
+        the image is still displayed.
+
+        This is because OpenGL maps the pixels.
+        Starting from the bottom left corner of the texture at [0,0] to the top right at [1, 1]
+        it scans through the pixels, and maps it to the corresponding pixels space
+        in the Space Coordinates.
+        So now the space coordinates go from [-1, -1] to [0, 0]
+        OpenGL can map all the texture's pixels from [0, 0] to [1, 1]
+        to the space coordinates going from [-1, -1] to [0, 0]
+
+        When the space coordinates went from [-1, -1] to [1, 1]
+        OpenGL could map the whole texture's pixels to the quad specified by [-1, 0] to [0, 1]
+        It could also do for the quads specified by these:
+            +   [-1, -1] to [0, 0]
+            +   [0,   0] to [1, 1]
+            +   [0,  -1] to [1, 0]
+    
+        3.  Lastly, i multiplied the space coordinate's y values by -1 to flip the image
+        instead of fixing this in stbi_image.
+    */
+    vec2 normTexCoords = fragmentTexCoord;
+    /**
+        Could do this:
+            normTexCoords = 0.5 * (vertexPos.xy + vec2(1.0));
+        Or as below:
+    */
+    normTexCoords *= 0.5;
+    //normTexCoords -= 0.5; //  Do this
+    normTexCoords += 0.5;   //  Or this
+    //normTexCoords.y *= -1;
+    vec4 texColor = texture(material, normTexCoords); 
+
+    //pixelColor = vec4(fragmentColor, 1.0);
+
+    pixelColor = vec4(texColor);
+}

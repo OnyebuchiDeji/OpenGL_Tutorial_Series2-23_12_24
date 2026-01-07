@@ -1,0 +1,31 @@
+#version 330 core
+
+/**
+    Here, the  colorBuffer or texture that was rendered to off-screen
+    is taken and then sampled from and put on the screen.
+
+    So it is an indirect drawing.
+    Advantage is that one can modify this separate texture buffer in more
+    ways than if one rendered the texture directly to the main Screen Buffer
+
+    For example, one can do Edge Filters, look at points' neighbours...
+    and even add black and white.
+    One can warp things around and put effects on the screen etc.
+*/
+
+
+in vec2 fragmentTexCoord;
+
+
+uniform sampler2D colorBuffer;
+
+out vec4 color;
+
+void main()
+{
+    vec4 pixel = texture(colorBuffer, fragmentTexCoord);
+    //  Make Black and White
+    float intensity = 0.333 * (pixel.r + pixel.g + pixel.b);
+    color = vec4(vec3(intensity), 1.0);
+
+}

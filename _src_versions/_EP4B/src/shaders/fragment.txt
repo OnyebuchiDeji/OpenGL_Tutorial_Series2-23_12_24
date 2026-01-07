@@ -1,0 +1,18 @@
+#version 330 core
+
+in vec3 fragmentColor;
+in vec2 fragmentTexCoord;
+
+out vec4 pixelColor;
+
+uniform sampler2D material; //  Texture Unit 0
+uniform sampler2D mask;     //  Texture Unit 1
+
+void main()
+{
+    vec3 baseColor = texture(material, fragmentTexCoord).rgb;
+    float alpha = texture(mask, fragmentTexCoord).g;
+    pixelColor = vec4(baseColor, alpha);
+
+    //pixelColor = vec4(baseColor, alpha);
+}

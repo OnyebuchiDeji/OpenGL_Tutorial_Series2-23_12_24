@@ -1,0 +1,27 @@
+#version 330 core
+
+
+uniform vec3 u_Forward;
+uniform vec3 u_Right;
+uniform vec3 u_Up;
+
+
+out vec3 rayDirection;
+
+
+const vec2[6] positions = vec2[](
+    vec2( 1.0,  1.0),
+    vec2(-1.0,  1.0),
+    vec2(-1.0, -1.0),
+
+    vec2(-1.0, -1.0),
+    vec2( 1.0, -1.0),
+    vec2( 1.0,  1.0)
+);
+
+void main()
+{
+    vec2 vertexPos = positions[gl_VertexID];
+    gl_Position = vec4(vertexPos, 0.0, 1.0);
+    rayDirection = normalize(u_Forward + vertexPos.x * u_Right + vertexPos.y * u_Up);
+}

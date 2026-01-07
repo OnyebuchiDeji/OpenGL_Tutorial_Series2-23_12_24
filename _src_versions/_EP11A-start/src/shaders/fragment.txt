@@ -1,0 +1,31 @@
+#version 330 core
+
+in vec3 fragmentPos;
+in vec3 fragmentTexCoord;
+in vec3 fragmentNormal;
+
+out vec4 screenColor;
+
+uniform sampler2DArray u_Materials;
+uniform samplerCube u_Sky;
+uniform vec3 u_CameraPos;
+
+//const vec3 sunDirection = normalize(vec3(-1.0, 1.0, 1.0));
+
+void main()
+{
+   //   Ambient
+   vec3 light = vec3(0.2);
+
+   //   Directions
+   vec3 incident = normalize(fragmentPos - u_CameraPos);
+   vec3 reflected = normalize(reflect(incident, fragmentNormal));
+
+   //   Diffuse
+   light += 0.4 * texture(u_Sky, fragmentNormal).rgb;
+
+   //   Reflection
+   light += 0.4 * texture(u_Sky, reflected).rgb;
+
+   screenColor = vec4(light, 1.0) * texture(u_Materials, fragmentTexCoord);
+}

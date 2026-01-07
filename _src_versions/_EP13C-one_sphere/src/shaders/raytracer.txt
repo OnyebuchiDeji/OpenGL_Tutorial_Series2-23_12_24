@@ -1,0 +1,170 @@
+#version 430
+
+/**
+    Probably because it's a compute shader
+    that's why it's version 430
+    and why it can take variables like it does below
+
+    Finally, Ray Tracing is done here.
+    Like other shaders, this shader works per-pixel.
+*/
+
+struct Sphere
+{
+    vec3 center;
+    float radius;
+    vec3 color;
+    //  Padding is not used --- this is done because the GPU likes the data to be aligned in a particular way...
+    //  it likes taking data four floats at a time --- it hates 3
+    float padding;
+};
+
+struct Ray
+{
+    vec3 origin;
+    vec3 direction;
+};
+
+/**
+    Specifying the work group size: `local_size_x` and `local_size_y`
+    Also, `local_size_z` is defaulted to 1 but can be specified as 1.
+
+    Adjusting the `local_size_ x and y` affects the gl_GlobalInvocationID
+    hence affecting the screen space
+*/
+layout(local_size_x = 8, local_size_y = 8) in;
+
+/*
+    Pree the difference here. Normally, a Sampler2D would be used.
+    But Compute Shaders are more explicit; they access the image2D directly...
+    doing per-pixel access.
+    See that the color buffer is 32-float
+
+*/
+layout(rgba32f, binding = 0) uniform image2D colorBuffer;
+
+uniform vec3 u_CameraPos;
+uniform vec3 u_Forward;
+uniform vec3 u_Right;
+uniform vec3 u_Up;
+
+const vec3 sunDirection = normalize(vec3(1.0, 1.0, 1.0));
+
+
+//  Indicates whether a ray has hit the sphere.
+bool hit(Ray ray, Sphere sphere, inout float t)
+{
+    //  Distance from camera to sphere center
+    vec3 oc = ray.origin - sphere.center;
+
+    //  Magnitude of ray squared
+    float a = dot(ray.direction, ray.direction);
+
+    //  Finds projection of oc on 
+    float b = 2 * dot(oc, ray.direction);
+
+    //  Finds actual closest distance between camera and surface of center
+    float c = dot(oc, oc) - sphere.radius * sphere.radius;
+
+    float discriminant = b * b - 4 * a * c;
+    //  If the discriminant is negative, the ray has missed the sphere completely
+    if (discriminant < 0)
+    {
+        return false;
+    }
+
+    /**
+        This calculates the time on that ray and compare to the previous hit value...
+        
+    */
+    float t_hit = (-b  - sqrt(discriminant)) / (2 * a);
+    //  This tests whether the current hit is closer than a possible previous hit
+    //  AND it checks if t is positive (in front) of viewer, against being negative (behind the viewer), so 
+    if (t_hit < t && t_hit > 0.0001){
+        t = t_hit;
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+void main()
+{
+    /**
+        This gl_GlobalInvocationID is a 3D invocation is specific to the Compute Shaders.
+        it refers to the Global Location of this specific invokation of the compute shader within the problem space.
+        This is 3D and an unsigned vector, so just convert it to an integer vector.
+
+        Basically, it just gets the coordinate data of the current pixel.
+    */
+    ivec2 pixelPos = ivec2(gl_GlobalInvocationID.xy);
+    //  Read back size of image being worked with
+    ivec2 screen_size = imageSize(colorBuffer);
+
+    /**
+        The read size is used to do a bounds checked to ensure that the Compute Shader invocation
+        is within range for the image.
+        This is needed because a workgroup can be launched where some invocations (or pixel data) are on-screen
+        and some are off-screen. So this ensures that the launched workgroup is complete when all the invocations
+        in the workgroup are complete.
+
+        So if there's a workgroup of 8 invocations, and 6 invocations are done working and have returned, while 2 are still working...
+        those done will sit and wait until the rest are done.
+    */
+    if (pixelPos.x >= screen_size.x || pixelPos.y >= screen_size.y){
+        return;
+    }
+
+    //  To make sure the sphere looks like a sphere
+    float aspect_ratio = float(screen_size.y) / float(screen_size.x);
+
+    /**
+        Horizontal and vertical coefficients are basically the modified (normalized) pixel coordinates
+        The pixel space are modified such that if the pixel is to the bottom left, it's (-1, -1)
+        If in the center, (0, 0), if to the top right, it's (1, 1)
+    
+        Also, there are two ways to fix the aspect ratio issue:
+            1.  multiply the vertical_coefficient by the aspect ration.
+            2.  Divide both vertical and horizontal coefficients by the larger dimension, x, like this:
+                float horizontal_coefficient = (2.0 * pixelPos.x - screen_size.x) / screen_size.x;
+                float vertical_coefficient = (2.0 * pixelPos.y - screen_size.y) / screen_size.x;
+
+    */
+    float horizontal_coefficient = (2.0 * pixelPos.x - screen_size.x) / screen_size.x;
+    float vertical_coefficient = aspect_ratio * (2.0 * pixelPos.y - screen_size.y) / screen_size.y;
+
+    Ray ray;
+    ray.origin = u_CameraPos;
+    //  Each pixel represents a ray, more clearly, a ray is projected from each pixel
+    /**
+        If the pixel is in the middle, direction is the Camera's forwards vector
+        If to the left, it is the Camera's forward - right vector which results in pointing left.
+        If to the right, it's the forward vector + right vector, pointing right.
+    */
+    ray.direction = normalize(u_Forward + horizontal_coefficient * u_Right + vertical_coefficient * u_Up);
+
+    Sphere sphere;
+    sphere.center = vec3(3.0, 0.0, 0.0);
+    sphere.radius = 2.0;
+    sphere.color = vec3(1.0, 0.75, 0.5);
+
+    float t = 99999;
+
+    vec3 color = vec3(0.0);
+    if (hit(ray, sphere, t)){
+        //  Normal vector on a sphere is the direction vector from the sphere center to the hit point on it's surface
+        
+        //  First, het the hit point
+        vec3 hit_pos = ray.origin + t * ray.direction;
+        //  Get the normal vector --- from sphere center to hit point
+        vec3 normal = normalize(hit_pos - sphere.center);
+        //  Use standard dot product to calculate Diffuse Lighting
+        float light_amount = max(0.0, dot(-sunDirection, normal));
+        //  Attenuate Color.
+        color = light_amount * sphere.color;
+    }
+
+    //  To Affect the Color, modify the Fragment Shader.
+    imageStore(colorBuffer, pixelPos, vec4(color, 1.0));
+}
