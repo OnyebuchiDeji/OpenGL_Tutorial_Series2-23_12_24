@@ -1,11 +1,11 @@
-OpenGL_Tutorial_Series2-23_12_24
+#####   OpenGL_Tutorial_Series2-23_12_24
 
 
 ##   Overview
 
-This is an OpenGL series from GetIntoGameDev on Youtube.
+This is an OpenGL series from GetIntoGameDev on YouTube.
 
-***Reference: GetIntoGameDev (2023), "OpenGL with C++ Series"***
+***Reference: GetIntoGameDev (2023), "OpenGL with C++ Series" [YouTube]. Available at: https://www.youtube.com/watch?v=4m9RHfdUU_M&list=PLn3eTxaOtL2PHxN8EHf-ktAcN-sGETKfw***
 
 
 ###	How To Setup
